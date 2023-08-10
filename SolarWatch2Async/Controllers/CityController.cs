@@ -24,14 +24,19 @@ namespace SolarWatch2Async.Controllers
         }
 
         [HttpGet("GetAsync")]
-        public async Task<City> GetAsync(string cityName, [Required] DateOnly day)
+        public async Task<ActionResult<City>> GetAsync(string cityName, [Required] DateOnly day)
         {
-            _logger.LogInformation("Long running process started");
-            await Task.Delay(30000);
-            
-            var city = _cityService.GetCity(cityName, day);
-            return city;
+            try
+            {
+                var city = await _cityService.GetCityAsync(cityName, day);
+                return Ok(city);
+            }
 
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting solar data, {ex.Message}");
+                return NotFound($"Error getting solar data, {ex.Message}");
+            }
         }
 
     }

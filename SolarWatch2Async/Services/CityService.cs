@@ -13,6 +13,7 @@ namespace SolarWatch2Async.Services
     {
         private readonly ILogger<CityService> _logger;
         private readonly IJsonProcessor _jsonProcessor;
+        private readonly HttpClient client = new HttpClient();
 
         public CityService(ILogger<CityService> logger, IJsonProcessor jsonProcessor)
         {
@@ -20,43 +21,44 @@ namespace SolarWatch2Async.Services
             _jsonProcessor = jsonProcessor;
         }
 
-        WebClient client = new WebClient();
 
-        public string GetCoordinates(string cityName)
+        public async Task<string> GetCoordinatesAsync(string cityName)
         {
             var apiKey = "5d6fd30487df4b2187e713818f4ea218";
             var urlCity = $"http://api.openweathermap.org/geo/1.0/direct?q={cityName}&limit=1&appid={apiKey}";
             _logger.LogInformation("Calling OpenWeather API with url: {url}", urlCity);
-            var cityData = client.DownloadString(urlCity);
 
-            if (cityData == "[]")
+            var cityData = await client.GetAsync(urlCity);
+
+            if (await cityData.Content.ReadAsStringAsync() == "[]")
             {
                 throw new Exception("City not found");
             }
 
-            return cityData;
+            return await cityData.Content.ReadAsStringAsync();
         }
 
-        public string GetSolarData(DateOnly when, City aCity)
+        public async Task<string> GetSolarDataAsync(DateOnly when, City aCity)
         {
             string day = $"{when.Year}-{when.Month}-{when.Day}";
             var urlSun = $"https://api.sunrise-sunset.org/json?lat={aCity.Lat}&lng={aCity.Lon}&date={day}";
             _logger.LogInformation("Calling OpenWeather API with url: {url}", urlSun);
-            var solarData = client.DownloadString(urlSun);
 
-            if (solarData == "[]")
+            var solarData = await client.GetAsync(urlSun);
+
+            if (await solarData.Content.ReadAsStringAsync() == "[]")
             {
-                throw new Exception("Solar data not found");
+                throw new Exception("Sunrise and sunset data not found");
             }
 
-            return solarData;
+            return await solarData.Content.ReadAsStringAsync();
         }
 
-        public City GetCity(string cityName, DateOnly day)
+        public async Task<City> GetCityAsync(string cityName, DateOnly day)
         {
-            var cityData = GetCoordinates(cityName);
+            var cityData = await GetCoordinatesAsync(cityName);
             var city = _jsonProcessor.ProcessJsonCityData(cityData);
-            var solarData = GetSolarData(day, city);
+            var solarData = await GetSolarDataAsync(day, city);
             var sunsetSunriseData = _jsonProcessor.ProcessJsonSolarData(solarData, day);
 
             if (city.Country == "HU")
